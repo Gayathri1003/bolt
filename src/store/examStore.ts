@@ -53,10 +53,10 @@ export const useExamStore = create<ExamState>((set, get) => ({
     const { getStudentBatch } = useBatchStore.getState();
     
     const studentExams = exams.filter((exam) => {
-      // Get the student's batch for this exam's subject
+      const examStartTime = new Date(exam.start_time);
+      const examEndTime = new Date(exam.end_time);
       const studentBatch = getStudentBatch(studentId, exam.subject_id);
       
-      // Check if the exam matches the student's class, semester, and batch
       return exam.class === class_ && 
              exam.semester.toString() === semester &&
              exam.is_active === true &&

@@ -20,6 +20,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
   
   addTeacher: async (teacherData) => {
     try {
+      // Check if the username already exists
       const existingTeacher = get().teachers.find(
         (teacher) => teacher.username === teacherData.username
       );
@@ -71,6 +72,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
   assignSubject: async (assignment) => {
     const state = get();
     
+    // Check if subject is already assigned
     const isAssigned = state.isSubjectAssigned(
       assignment.subjectCode,
       assignment.department,
@@ -82,6 +84,7 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
       throw new Error('This subject is already assigned to another teacher for the specified department, semester, and class');
     }
   
+    // Check if teacher exists
     const teacher = state.teachers.find(t => t.id === assignment.teacherId);
     if (!teacher) {
       throw new Error('Teacher not found');

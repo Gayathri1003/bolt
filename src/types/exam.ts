@@ -1,14 +1,11 @@
-// src/types/exam.ts
 export interface Question {
   id: string;
   text: string;
   options: string[];
-  correct_answer: string; // 'A', 'B', 'C', or 'D'
+  correct_answer: number;
   difficulty: 'easy' | 'medium' | 'hard';
-  subject_id: string;
-  marks?: number; // Optional, used in QuestionSetup
+  marks: number;
 }
-
 
 export interface Exam {
   id: string;

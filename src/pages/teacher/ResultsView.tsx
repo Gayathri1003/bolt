@@ -27,6 +27,17 @@ const ResultsView = () => {
   const results = selectedExam ? getExamResults(selectedExam) : [];
   const selectedExamData = completedExams.find(exam => exam.id === selectedExam);
 
+  // Get all students who should have taken the exam
+  const eligibleStudents = selectedExamData ? students.filter(student => 
+    student.class === selectedExamData.class &&
+    student.semester.toString() === selectedExamData.semester.toString()
+  ) : [];
+
+  // Find students who didn't attend
+  const absentStudents = eligibleStudents.filter(student => 
+    !results.some(result => result.studentId === student.id)
+  );
+
   const toggleBatch = (batchNumber: number) => {
     if (expandedBatches.includes(batchNumber)) {
       setExpandedBatches(expandedBatches.filter(b => b !== batchNumber));
@@ -35,27 +46,21 @@ const ResultsView = () => {
     }
   };
 
-  // Get students who were eligible to take the exam in a specific batch
-  const getEligibleStudents = (batchNumber: number) => {
-    if (!selectedExamData || !selectedExamData.batches) return [];
+  // Group students by batch
+  const getStudentsByBatch = (batchNumber: number) => {
+    if (!selectedExamData) return [];
     
-    // Only include students if this batch was included in the exam
-    if (!selectedExamData.batches.includes(batchNumber)) return [];
-    
-    return students.filter(student => {
+    return eligibleStudents.filter(student => {
       const studentBatch = getStudentBatch(student.id, selectedExamData.subject_id);
       return studentBatch === batchNumber;
     });
   };
 
-  // Get results for eligible students in a specific batch
+  // Get results for a specific batch
   const getBatchResults = (batchNumber: number) => {
-    const eligibleStudents = getEligibleStudents(batchNumber);
+    const batchStudents = getStudentsByBatch(batchNumber);
     
-    // If this batch wasn't included in the exam, return empty array
-    if (eligibleStudents.length === 0) return [];
-    
-    return eligibleStudents.map(student => {
+    return batchStudents.map(student => {
       const result = results.find(r => r.studentId === student.id);
       
       if (result) {
@@ -83,17 +88,6 @@ const ResultsView = () => {
     });
   };
 
-  // Calculate statistics for eligible students in a batch
-  const getBatchStatistics = (batchNumber: number) => {
-    const batchResults = getBatchResults(batchNumber);
-    return {
-      total: batchResults.length,
-      passed: batchResults.filter(r => r.status === 'pass').length,
-      failed: batchResults.filter(r => r.status === 'fail').length,
-      absent: batchResults.filter(r => r.status === 'absent').length
-    };
-  };
-
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">View Results</h1>
@@ -117,15 +111,12 @@ const ResultsView = () => {
         </select>
       </div>
 
-      {selectedExam && selectedExamData && (
+      {selectedExam && (
         <div className="space-y-6">
-          {/* Only show batches that were included in the exam */}
-          {selectedExamData.batches.map((batchNumber) => {
+          {[1, 2, 3, 4].map((batchNumber) => {
             const batchResults = getBatchResults(batchNumber);
             const isBatchExpanded = expandedBatches.includes(batchNumber);
-            const stats = getBatchStatistics(batchNumber);
             
-            // Only show batches that have eligible students
             if (batchResults.length === 0) return null;
             
             return (
@@ -136,13 +127,9 @@ const ResultsView = () => {
                 >
                   <h2 className="text-lg font-medium text-gray-900">Batch {batchNumber}</h2>
                   <div className="flex items-center">
-                    <div className="mr-6 text-sm">
-                      <span className="text-green-600">{stats.passed} Passed</span>
-                      <span className="mx-2">|</span>
-                      <span className="text-red-600">{stats.failed} Failed</span>
-                      <span className="mx-2">|</span>
-                      <span className="text-yellow-600">{stats.absent} Absent</span>
-                    </div>
+                    <span className="mr-4 text-sm text-gray-500">
+                      {batchResults.length} students
+                    </span>
                     {isBatchExpanded ? (
                       <ChevronUp className="h-5 w-5 text-gray-500" />
                     ) : (
@@ -173,50 +160,52 @@ const ResultsView = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {batchResults.map((result) => (
-                        <tr key={result.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {result.studentName}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {result.status === 'absent' ? (
-                              <div className="text-sm text-gray-500">-</div>
-                            ) : (
-                              <div className="text-sm text-gray-900">
-                                {result.correctAnswers}/{result.totalQuestions}
+                      {batchResults.map((result) => {
+                        return (
+                          <tr key={result.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {result.studentName}
                               </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {result.status === 'absent' ? (
-                              <div className="text-sm text-gray-500">-</div>
-                            ) : (
-                              <div className="text-sm font-medium">
-                                {result.percentage}%
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              result.status === 'pass'
-                                ? 'bg-green-100 text-green-800'
-                                : result.status === 'fail'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {result.status === 'pass' ? 'Passed' : 
-                               result.status === 'fail' ? 'Failed' : 'Absent'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {result.status === 'absent' ? 
-                              '-' : 
-                              new Date(result.submittedAt).toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {result.status === 'absent' ? (
+                                <div className="text-sm text-gray-500">-</div>
+                              ) : (
+                                <div className="text-sm text-gray-900">
+                                  {result.correctAnswers}/{result.totalQuestions}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {result.status === 'absent' ? (
+                                <div className="text-sm text-gray-500">-</div>
+                              ) : (
+                                <div className="text-sm font-medium">
+                                  {result.percentage}%
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                result.status === 'pass'
+                                  ? 'bg-green-100 text-green-800'
+                                  : result.status === 'fail'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {result.status === 'pass' ? 'Passed' : 
+                                 result.status === 'fail' ? 'Failed' : 'Absent'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {result.status === 'absent' ? 
+                                '-' : 
+                                new Date(result.submittedAt).toLocaleString()}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
@@ -226,24 +215,26 @@ const ResultsView = () => {
 
           {/* Summary Section */}
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Overall Summary</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {selectedExamData.batches.map((batchNumber) => {
-                const stats = getBatchStatistics(batchNumber);
-                if (stats.total === 0) return null;
-
-                return (
-                  <div key={batchNumber} className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="text-sm font-medium text-gray-900 mb-2">Batch {batchNumber}</h3>
-                    <div className="space-y-1 text-sm">
-                      <p className="text-green-600">Passed: {stats.passed}</p>
-                      <p className="text-red-600">Failed: {stats.failed}</p>
-                      <p className="text-yellow-600">Absent: {stats.absent}</p>
-                      <p className="text-gray-600">Total: {stats.total}</p>
-                    </div>
-                  </div>
-                );
-              })}
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Exam Summary</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h3 className="text-sm font-medium text-green-800">Passed</h3>
+                <p className="text-2xl font-bold text-green-600 mt-2">
+                  {results.filter(r => r.status === 'pass').length}
+                </p>
+              </div>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <h3 className="text-sm font-medium text-red-800">Failed</h3>
+                <p className="text-2xl font-bold text-red-600 mt-2">
+                  {results.filter(r => r.status === 'fail').length}
+                </p>
+              </div>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <h3 className="text-sm font-medium text-yellow-800">Absent</h3>
+                <p className="text-2xl font-bold text-yellow-600 mt-2">
+                  {absentStudents.length}
+                </p>
+              </div>
             </div>
           </div>
         </div>
