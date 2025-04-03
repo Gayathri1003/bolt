@@ -1,12 +1,14 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI('AIzaSyDRANHYf1wBI8ySt_u0Zr08SwhNS2jMOdY');
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 interface GeneratedQuestion {
+  id: string;  // Add ID to the interface
   text: string;
   options: string[];
   correct_answer: number;
   difficulty: 'easy' | 'medium' | 'hard';
+  marks: number;
 }
 
 export async function generateQuestionsFromText(
@@ -14,7 +16,7 @@ export async function generateQuestionsFromText(
   count: number = 5
 ): Promise<GeneratedQuestion[]> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const prompt = `Generate ${count} multiple choice questions from the following topic. 
       Format each question as a JSON object with properties:
@@ -25,20 +27,41 @@ export async function generateQuestionsFromText(
       
       Topic: ${text}
       
-      Return the questions in a JSON array format.`;
+      Return ONLY a JSON array of questions with no additional text.
+      Example format:
+      [
+        {
+          "text": "What is the capital of France?",
+          "options": ["London", "Paris", "Berlin", "Madrid"],
+          "correct_answer": 1,
+          "difficulty": "easy"
+        }
+      ]`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const responseText = response.text();
+    const responseText = await response.text();
     
     try {
       // Try to parse the response as JSON directly
-      return JSON.parse(responseText);
+      const parsedQuestions = JSON.parse(responseText);
+      
+      // Add unique IDs and default marks to each question
+      return parsedQuestions.map((q: any, index: number) => ({
+        ...q,
+        id: `gen_${Date.now()}_${index}`,  // Generate unique ID
+        marks: 1  // Default marks
+      }));
     } catch (error) {
       // If direct parsing fails, try to extract JSON from the text
       const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsedQuestions = JSON.parse(jsonMatch[0]);
+        return parsedQuestions.map((q: any, index: number) => ({
+          ...q,
+          id: `gen_${Date.now()}_${index}`,  // Generate unique ID
+          marks: 1  // Default marks
+        }));
       }
       throw new Error('Failed to parse generated questions');
     }

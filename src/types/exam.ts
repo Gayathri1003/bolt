@@ -5,6 +5,8 @@ export interface Question {
   correct_answer: number;
   difficulty: 'easy' | 'medium' | 'hard';
   marks: number;
+  subject_id: string;
+  teacher_id: string;
 }
 
 export interface Exam {
